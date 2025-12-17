@@ -251,6 +251,9 @@
   #### Trip: We can create space save model
     - We can deploy with service: aws, google cloude..
 
+
+## License
+This project is licensed under the [MIT License](LICENSE).
     
     
 
