@@ -43,10 +43,60 @@
     ```bash
     !pip install -q -U transformers datasets accelerate peft trl bitsandbytes
     ```
-    2. Login to Hugging Face
+
+    2. Install dependency 
+    ```bash
+    pip install pyarrow==19.0.0 --force-reinstall
+    ```
+
+    3. Login to Hugging Face
     ```bash
     from huggingface_hub import login
     login() # You will be prompted to enter your token
     ```
-    For login to huggin face so get model ai that traning data
+    - For login to huggin face so get model ai that traning data and then for get Token from huggin face for paste your HF access token (You must accept Gemma license on Hugging Face)
+    - Access Tokens in access huggin face:
+        - Token type -> Read
+        - Token name (e.g. modelAi)
+        - Create Token
+        - Copy Token for pass token HF access login.
+
+    4. For fine-tune model ai (gemma-2b-it)
+
+    - Gemma 2B = Google's open-weight LLM (≈2 billion parameters)
+
+    ```bash
+    import torch
+    from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+
+    model_id = "google/gemma-2b-it"
+
+    quantization_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=torch.bfloat16
+    )
+
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_id,
+        quantization_config=quantization_config,
+        device_map="auto"
+    )
+
+    print("✅ Model loaded successfully!")
+    ```
+    - We needs goto back account huggin face for get vertiy Model AI for run coding:
+        - Search: gemma-2b-it select (google/gemma-2b-it)
+        - Click: Acknownledge lincese
+        - Click: Authorize
+
+        After authorize ready we needs to create model ai Name:
+
+        - Completed all field
+        - Accept to contiunue 
+        - After clcik run code and waiting process fine-tune
+
+    
+    
+
 
