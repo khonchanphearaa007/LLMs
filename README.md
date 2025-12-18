@@ -61,18 +61,18 @@
         2. Runtime -> Change runtime type
         3. Hardware accelerator -> T4 GPU
         4. Save
-    #### process fine-tuning data
-    1, Import library
+    ### process fine-tuning data
+  #### STEP 1. Import library
     ```bash
     !pip install -q -U transformers datasets accelerate peft trl bitsandbytes
     ```
 
-    2, Install dependency 
+  #### STEP 2. Install dependency 
     ```bash
     pip install pyarrow==19.0.0 --force-reinstall
     ```
 
-    3, Login to Hugging Face
+  #### STEP 3. Login to Hugging Face
     ```bash
     from huggingface_hub import login
     login() # You will be prompted to enter your token
@@ -84,7 +84,7 @@
         - Create Token
         - Copy Token for pass token HF access login.
 
-    4, For fine-tune model ai (gemma-2b-it)
+  #### STEP 4. For fine-tune model ai (gemma-2b-it)
 
     - Gemma 2B = Google's open-weight LLM (≈2 billion parameters)
 
@@ -120,13 +120,13 @@
         - After clcik run code and waiting process download model ai (gemma-2b-it)
 
 
-    5, Upload datasets in file
+  #### STEP 5. Upload datasets in file
     - Right Click: New File
     - Name file: (e.g. datasets.json)
     We will fine-tuning datasets.json
 
 
-    6, Load Datasets
+  #### STEP 6. Load Datasets
     ```bash
     from datasets import load_dataset
 
@@ -135,7 +135,7 @@
     - Import datasets into our code
     
 
-    7, Config LoRa
+  #### STEP 7. Config LoRa
     - LoRa config (Low-Rank Adaptation configuration) defines how your base AI Model is fine-tuned
     
     ```bash
@@ -148,7 +148,7 @@
     )
     ```
 
-    8, Fine Tuning
+  #### STEP 8. Fine Tuning
 
     ```bash
     from transformers import TrainingArguments
@@ -194,7 +194,7 @@
       - Folder 2 wandb for connect into api
 
 
-    9, Testing Chat
+  #### STEP 9. Testing Chat
 
     ```bash
     prompt =  "How does Cambodia ensure education quality in public schools?\nAssistant:"
@@ -207,7 +207,7 @@
   #### Noted: If correct the data make sure in dataset.json must to be is have manay data field.
 
     
-    10, Push code to Hugging Face
+  #### STEP 10. Push code to Hugging Face
 
     ```bash
     from huggingface_hub import login
@@ -226,7 +226,7 @@
       - Pass to HF access tokens
 
     
-    11, Repo name
+  #### STEP 11. Repo name
 
     ```bash
     # Replace "your-hf-username" and "my-gemma-model" with your details
@@ -251,6 +251,153 @@
   #### Trip: We can create space save model
     - We can deploy with service: aws, google cloude..
 
+## GET API Fine-Tuned Data
+- When get fastAPi from colab model for POST in web app localhost owner
+  - How it works
+  ```bash
+    [Frontend Web App]
+        |
+        | HTTP request (POST /chat)
+        v
+  [API Server in Colab (FastAPI)]
+        |
+  [Gemma 2B + LoRA fine-tuned model]
+        |
+        v
+      Response
+  ```
+
+  - Frontend: Gradio
+  - Backend: API is FastAPI running in Colab
+  - The API receives a message -> returns a response from your fine-tuned model
+
+  #### STEP 1. Install required package in Colab
+  
+  ```bash
+  !pip install transformers peft bitsandbytes torch fastapi uvicorn nest-asyncio pyngrok
+  ```
+
+  #### STEP 2. Load your fine-tuned model
+  ```bash
+  from transformers import AutoTokenizer, AutoModelForCausalLM
+  from peft import PeftModel
+
+  base_model = "google/gemma-2b"
+  lora_path = "./gemma-edu-lora"  # your fine-tuned LoRA folder
+
+  tokenizer = AutoTokenizer.from_pretrained(base_model)
+  model = AutoModelForCausalLM.from_pretrained(
+      base_model,
+      load_in_8bit=True,
+      device_map="auto"
+  )
+
+  model = PeftModel.from_pretrained(model, lora_path)
+  model.eval()
+  ```
+
+  #### STEP 3. Create API with FastAPI
+
+  ```bash
+  from fastapi import FastAPI
+  from pydantic import BaseModel
+
+  app = FastAPI()
+
+  class ChatRequest(BaseModel):
+      message: str
+
+  @app.post("/chat")
+  def chat(req: ChatRequest):
+      prompt = f"<start_of_turn>user\n{req.message}<end_of_turn>\n<start_of_turn>model\n"
+      inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+      outputs = model.generate(**inputs, max_new_tokens=200)
+      response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+      return {"response": response}
+  ```  
+
+  - Endpoint: POST/chat
+  - Payload: {"message": "Your question"}
+  - Response: {"response": "AI answer"}
+
+  #### STEP 4. Expose API to the Web
+
+    - Colab VMs are private, so use ngrok:
+  
+  ```bash
+  import nest_asyncio
+  from pyngrok import ngrok
+  import uvicorn
+
+  nest_asyncio.apply()
+  public_url = ngrok.connect(8000)
+  print("Public URL:", public_url)
+
+  uvicorn.run(app, host="0.0.0.0", port=8000)
+
+  ```
+
+  - public_url is now your API URL (e.g., http://abced1234.ngrok.io)
+  - Frontend can send POST request to http://abced1234.ngrok.io/chat
+
+  #### STEP 5. Connect Fronted to API
+    - Python Gradio example:
+
+  ```bash
+  import gradio as gr
+  import requests
+
+  def chat_ui(message):
+      url = "http://abcd1234.ngrok.io/chat"
+      res = requests.post(url, json={"message": message})
+      return res.json()["response"]
+
+  gr.Interface(chat_ui, gr.Textbox(), gr.Textbox()).launch()
+  ```
+
+## Project Structure API + Interface
+
+  ```bash
+      education-chat-app/
+    │
+    ├── model/                    # Fine-tuned model + LoRA adapters
+    │   └── gemma-edu-lora/       # Your fine-tuned LoRA folder
+    │
+    ├── app/                      # Backend logic
+    │   ├── __init__.py
+    │   ├── model_loader.py       # Load Gemma + LoRA
+    │   ├── chat.py               # Chat function calling model
+    │   └── api.py                # FastAPI endpoints (POST /chat)
+    │
+    ├── ui/                       # Frontend interface
+    │   ├── gradio_ui.py          # Python Gradio interface (optional)
+    │   └── web/                  # Optional HTML/JS frontend
+    │       ├── index.html
+    │       └── script.js
+    │
+    ├── data/                     # Dataset files (optional)
+    │   ├── datasets.json
+    │   └── datasets.jsonl
+    │
+    ├── notebooks/                # Colab notebooks
+    │   └── fine_tune.ipynb
+    │
+    ├── requirements.txt          # All Python dependencies
+    ├── README.md
+    └── run.py                    # Entry point to run Gradio or FastAPI
+  ```
+  
+  #### Description function Folder/File
+
+  1, model/ -> fine-tuned Gemma 2B + LoRa adpters
+
+  2, app/   -> backend logic (model loader, chat, API)
+
+  3, ui/    -> frontend interface (Gradio)
+
+  4, data/  -> datasets files (optional)
+  
+  5, notedbooks/  -> Colab notebooks for fine-tuning/testing
 
 ## License
 This project is licensed under the [MIT License](LICENSE).
