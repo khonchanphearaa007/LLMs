@@ -361,11 +361,11 @@
       education-chat-app/
     │
     ├── model/                    # Fine-tuned model + LoRA adapters
-    │   └── gemma-edu-lora/       # Your fine-tuned LoRA folder
+    │   └── gemma-edu-lora/       # Copy your LoRa fine-tuned model here
     │
     ├── app/                      # Backend logic
     │   ├── __init__.py
-    │   ├── model_loader.py       # Load Gemma + LoRA
+    │   ├── model_loader.py       # Load your model and tokenizer
     │   ├── chat.py               # Chat function calling model
     │   └── api.py                # FastAPI endpoints (POST /chat)
     │
@@ -398,6 +398,115 @@
   4, data/  -> datasets files (optional)
   
   5, notedbooks/  -> Colab notebooks for fine-tuning/testing
+
+
+  #### Write the code here
+  
+  ##### 1. model_leader.py
+  ```bash
+  from transformers import AutoTokenizer, AutoModelForCausalLM
+  from peft import PeftModel
+
+  base_model = "google/gemma-2b"
+  lora_path = "./model/gemma-edu-lora"
+
+  tokenizer = AutoTokenizer.from_pretrained(base_model)
+  model = AutoModelForCausalLM.from_pretrained(base_model, load_in_8bit=True, device_map="auto")
+  model = PeftModel.from_pretrained(model, lora_path)
+  model.eval()
+  ```
+
+  ##### 2. chat.py
+  
+  ```bash
+  from app.model_loader import model, tokenizer
+
+  def chat_with_ai(message):
+      prompt = f"<start_of_turn>user\n{message}<end_of_turn>\n<start_of_turn>model\n"
+      inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+      outputs = model.generate(**inputs, max_new_tokens=200)
+      response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+      return response
+  ```
+
+  ##### 3. api.py
+  
+  ```bash
+  from fastapi import FastAPI
+  from pydantic import BaseModel
+  from app.chat import chat_with_ai
+
+  app = FastAPI()
+
+  class ChatRequest(BaseModel):
+      message: str
+
+  @app.post("/chat")
+  def chat(req: ChatRequest):
+      return {"response": chat_with_ai(req.message)}
+  ```
+
+  ##### 4. gradio_ui.py
+
+  ```bash
+  import gradio as gr
+  from app.chat import chat_with_ai
+
+  iface = gr.Interface(
+      fn=chat_with_ai,
+      inputs=gr.Textbox(lines=2, placeholder="Ask a question..."),
+      outputs=gr.Textbox(label="AI Response"),
+      title="Education AI Chat"
+  )
+
+  iface.launch()
+  ```
+
+  ##### 5. run.py
+  
+  ```bash
+  from ui.gradio_ui import iface
+
+  if __name__ == "__main__":
+      iface.launch()
+  ```
+
+  ##### 6. Create requirements.txt
+
+  ```bash
+  transformers
+  peft
+  bitsandbytes
+  torch
+  gradio
+  fastapi
+  uvicorn
+  nest-asyncio
+  pyngrok
+  ```
+
+  - Later, you can run:
+  
+  ```bash
+  pip install -r requirements.txt
+  ```
+
+  ##### 7. Run your project
+  - Option 1: Gradio Interface
+
+    ```bash
+    python run.py
+    ``` 
+  
+  - Option 2: FastAPI API
+
+    ```bash
+    uvicorn app.api:app --reload
+    ```
+
+      - API runs at http://127.0.0.1:8000/chat
+      - Frontend can send POST requests here
+  
 
 ## License
 This project is licensed under the [MIT License](LICENSE).
