@@ -29,8 +29,8 @@
   Example (Text model):
   ```bash
     {
-        "input": "What is CI/CD?",
-        "output": "CI/CD stands for Continuous Integration and Continuous Deployment..."
+        "instruction": "What is CI/CD?",
+        "response": "CI/CD stands for Continuous Integration and Continuous Deployment..."
     }
   ```
   Example (Chat model):
@@ -508,6 +508,8 @@
       - Frontend can send POST requests here
   
 
+
+- DevelopBY : ``` khonchanphearaa ```
 ## License
 This project is licensed under the [MIT License](LICENSE).
     
